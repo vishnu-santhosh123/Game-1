@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Cat Adventure 3D</title>
+<title>Flappy Game</title>
 <style>
-  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  *{ box-sizing:border-box; }
   html,body{
     margin:0; padding:0; height:100%;
     background:#0d1b2a;
@@ -14,718 +14,423 @@
     overflow:hidden;
     touch-action: manipulation;
   }
-  #wrap{ position:relative; width:100%; max-width:460px; aspect-ratio: 9/16; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+  #wrap{ position:relative; width:100%; max-width:420px; aspect-ratio: 9/16; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
   canvas{ display:block; width:100%; height:100%; border-radius:6px; }
-
   #hud{
-    position:absolute; top:14px; left:14px; right:14px;
-    display:flex; justify-content:space-between; align-items:flex-start;
+    position:absolute; top:16px; left:0; right:0;
+    text-align:center; color:white; font-size:2.4rem; font-weight:800;
+    text-shadow: 0 3px 6px rgba(0,0,0,0.4);
     pointer-events:none;
+    font-family: 'Trebuchet MS', sans-serif;
   }
-  #modeTag{
-    background: rgba(0,0,0,0.4); color:white; font-weight:700;
-    padding: 7px 14px; border-radius: 999px; font-size:0.85rem;
-  }
-
   #overlay{
     position:absolute; inset:0;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     background: rgba(10,15,25,0.55);
     color:white; text-align:center; padding: 20px;
   }
-  #overlay h1{ font-size:1.7rem; margin:0 0 6px; }
-  #overlay p{ margin:0 0 18px; opacity:0.85; font-size:0.9rem; max-width:300px; }
+  #overlay h1{ font-size:1.8rem; margin:0 0 6px; }
+  #overlay p{ margin:0 0 18px; opacity:0.85; font-size:0.95rem; }
+  #overlay .best{ font-size:0.85rem; opacity:0.7; margin-bottom:22px; }
   #startBtn{
     font-size:1.1rem; font-weight:700; border:none; cursor:pointer;
     background:#FFD34D; color:#3a2a00; padding:12px 30px; border-radius:999px;
     box-shadow:0 5px 0 #c9a12e;
   }
   #startBtn:active{ transform:translateY(3px); box-shadow:0 2px 0 #c9a12e; }
-
-  #loading{
-    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    color:rgba(255,255,255,0.7); font-size:0.9rem; background:#0d1b2a; text-align:center; padding:20px;
-  }
-
-  #padWrap{
-    position:absolute; bottom:18px; left:18px;
-    width:132px; height:132px;
-    display:none;
-  }
-  #padWrap.show{ display:block; }
-  .pad-btn{
-    position:absolute; width:44px; height:44px;
-    background: rgba(255,255,255,0.85);
-    border-radius: 10px;
-    display:flex; align-items:center; justify-content:center;
-    font-size:1.2rem; color:#333; user-select:none;
-    box-shadow: 0 3px 6px rgba(0,0,0,0.25);
-  }
-  .pad-btn:active{ background: rgba(255,255,255,1); transform: scale(0.94); }
-  #padUp{ top:0; left:44px; }
-  #padDown{ top:88px; left:44px; }
-  #padLeft{ top:44px; left:0; }
-  #padRight{ top:44px; left:88px; }
-
-  #climbBtn{
-    position:absolute; bottom:34px; right:22px;
-    width:78px; height:78px; border-radius:50%;
-    background: rgba(255,211,77,0.92);
-    color:#3a2a00; font-weight:800; font-size:0.85rem;
-    display:none; align-items:center; justify-content:center; text-align:center;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-    border: none; cursor:pointer; line-height:1.1;
-  }
-  #climbBtn.show{ display:flex; }
-  #climbBtn:active{ transform: scale(0.94); }
-
-  #hint{ position:absolute; bottom:14px; left:0; right:0; text-align:center; color:rgba(255,255,255,0.55); font-size:0.75rem; pointer-events:none; }
+  #hint{ position:absolute; bottom:14px; left:0; right:0; text-align:center; color:rgba(255,255,255,0.6); font-size:0.8rem; }
 </style>
 </head>
 <body>
 
 <div id="wrap">
-  <div id="loading">loading the woods…</div>
   <canvas id="game"></canvas>
-
-  <div id="hud">
-    <div id="modeTag">🐾 wandering</div>
-  </div>
-
-  <div id="overlay" style="display:none;">
-    <h1>Cat Adventure</h1>
-    <p>Wander the forest, walk the shore of the lake, and climb the big trees. WASD / arrows to move, drag to look around, and the paw button to climb down when you're up a tree.</p>
+  <div id="hud">0</div>
+  <div id="overlay">
+    <h1 id="overlayTitle">Flappy Game</h1>
+    <p id="overlaySub">Tap / click / press space to flap</p>
+    <div class="best" id="bestScore"></div>
     <button id="startBtn">Play</button>
   </div>
-
-  <div id="padWrap">
-    <div class="pad-btn" id="padUp">▲</div>
-    <div class="pad-btn" id="padDown">▼</div>
-    <div class="pad-btn" id="padLeft">◀</div>
-    <div class="pad-btn" id="padRight">▶</div>
-  </div>
-  <button id="climbBtn">Climb</button>
-  <div id="hint">walk up to a big tree to climb it</div>
+  <div id="hint">tap anywhere to flap</div>
 </div>
 
-<script src="three.min.js"></script>
 <script>
 (function(){
-  const wrap = document.getElementById('wrap');
   const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const hud = document.getElementById('hud');
   const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlayTitle');
+  const overlaySub = document.getElementById('overlaySub');
+  const bestScoreEl = document.getElementById('bestScore');
   const startBtn = document.getElementById('startBtn');
-  const loading = document.getElementById('loading');
-  const modeTag = document.getElementById('modeTag');
-  const padWrap = document.getElementById('padWrap');
-  const climbBtn = document.getElementById('climbBtn');
-  const hint = document.getElementById('hint');
 
-  if(typeof THREE === 'undefined'){
-    loading.textContent = "Something went wrong loading the 3D engine. Make sure three.min.js is uploaded in the same folder, then reload.";
-    return;
-  }
-
-  const isTouch = 'ontouchstart' in window;
-  if(isTouch) padWrap.classList.add('show');
-
-  // ---------- renderer / scene / camera ----------
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
-  renderer.shadowMap.enabled = true;
-
-  const scene = new THREE.Scene();
-  const skyColor = 0xaee2f7;
-  scene.background = new THREE.Color(skyColor);
-  scene.fog = new THREE.Fog(skyColor, 22, 60);
-
-  const camera = new THREE.PerspectiveCamera(56, 1, 0.1, 250);
-
+  let W, H, DPR;
   function resize(){
-    const rect = wrap.getBoundingClientRect();
-    renderer.setSize(rect.width, rect.height, false);
-    camera.aspect = rect.width / rect.height;
-    camera.updateProjectionMatrix();
+    DPR = window.devicePixelRatio || 1;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    W = rect.width; H = rect.height;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
   }
   window.addEventListener('resize', resize);
+  resize();
 
-  // ---------- lights ----------
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x5a7a4a, 0.95);
-  scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff3d0, 1.05);
-  sun.position.set(10, 16, 8);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(1024,1024);
-  sun.shadow.camera.left = -30; sun.shadow.camera.right = 30;
-  sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30;
-  scene.add(sun);
+  const GRAVITY = 1500;
+  const FLAP_VELOCITY = -430;
+  const PIPE_GAP_RATIO = 0.27;
+  const PIPE_WIDTH_RATIO = 0.16;
+  const PIPE_SPEED = 160;
+  const PIPE_INTERVAL = 1450;
 
-  // ---------- ground ----------
-  function makeGrassTexture(){
-    const c = document.createElement('canvas');
-    c.width = 64; c.height = 64;
-    const g = c.getContext('2d');
-    g.fillStyle = '#6DBE55'; g.fillRect(0,0,64,64);
-    g.fillStyle = '#5DA845';
-    for(let i=0;i<55;i++){ g.fillRect(Math.random()*64, Math.random()*64, 2, 6); }
-    g.fillStyle = '#7ECB68';
-    for(let i=0;i<28;i++){ g.fillRect(Math.random()*64, Math.random()*64, 2, 4); }
-    const tex = new THREE.CanvasTexture(c);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(28,28);
-    tex.magFilter = THREE.NearestFilter;
-    return tex;
-  }
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(140,140),
-    new THREE.MeshStandardMaterial({ map: makeGrassTexture(), roughness:1 })
-  );
-  ground.rotation.x = -Math.PI/2;
-  ground.receiveShadow = true;
-  scene.add(ground);
+  let bird, pipes, score, best, state, lastTime, spawnTimer, groundOffset;
+  let elapsed = 0;
+  let flapPulse = 0;
 
-  // ---------- lake ----------
-  const LAKE_CENTER = new THREE.Vector3(10, 0, -10);
-  const LAKE_RADIUS = 8.5;
+  best = parseInt(localStorage.getItem('flappy_best') || '0', 10) || 0;
 
-  function makeWaterTexture(){
-    const c = document.createElement('canvas');
-    c.width = 64; c.height = 64;
-    const g = c.getContext('2d');
-    g.fillStyle = '#3E8FBF'; g.fillRect(0,0,64,64);
-    g.strokeStyle = 'rgba(255,255,255,0.35)';
-    g.lineWidth = 1.5;
-    for(let y=4;y<64;y+=8){
-      g.beginPath();
-      for(let x=0;x<=64;x+=8){ g.lineTo(x, y+Math.sin(x*0.3)*2); }
-      g.stroke();
-    }
-    const tex = new THREE.CanvasTexture(c);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(6,6);
-    return tex;
-  }
-  const waterTex = makeWaterTexture();
-  const lake = new THREE.Mesh(
-    new THREE.CircleGeometry(LAKE_RADIUS, 40),
-    new THREE.MeshStandardMaterial({ map: waterTex, transparent:true, opacity:0.92, roughness:0.25, metalness:0.15, color:0xbfe0f0 })
-  );
-  lake.rotation.x = -Math.PI/2;
-  lake.position.set(LAKE_CENTER.x, 0.03, LAKE_CENTER.z);
-  scene.add(lake);
-
-  const shore = new THREE.Mesh(
-    new THREE.RingGeometry(LAKE_RADIUS, LAKE_RADIUS+0.9, 40),
-    new THREE.MeshStandardMaterial({ color:0xd9c48a, roughness:1 })
-  );
-  shore.rotation.x = -Math.PI/2;
-  shore.position.set(LAKE_CENTER.x, 0.025, LAKE_CENTER.z);
-  scene.add(shore);
-
-  // a few lily pads near the shore
-  for(let i=0;i<6;i++){
-    const a = Math.random()*Math.PI*2;
-    const d = LAKE_RADIUS*0.6 + Math.random()*LAKE_RADIUS*0.3;
-    const pad = new THREE.Mesh(new THREE.CircleGeometry(0.4,10), new THREE.MeshStandardMaterial({color:0x3f9e4f}));
-    pad.rotation.x = -Math.PI/2;
-    pad.position.set(LAKE_CENTER.x+Math.cos(a)*d, 0.05, LAKE_CENTER.z+Math.sin(a)*d);
-    scene.add(pad);
+  function reset(){
+    bird = { x: W*0.28, y: H*0.4, r: Math.max(13, W*0.05), vy: 0, rot: 0, wing: 0 };
+    pipes = [];
+    score = 0;
+    spawnTimer = 0;
+    groundOffset = 0;
+    flapPulse = 0;
+    hud.textContent = '0';
   }
 
-  // ---------- trees ----------
-  const climbableTrees = [];
-  const solidObstacles = []; // {x,z,radius}
-
-  function makePineTree(x,z,scaleF){
-    const g = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.22,1.1,6), new THREE.MeshStandardMaterial({color:0x8a5a34, flatShading:true}));
-    trunk.position.y = 0.55; trunk.castShadow = true;
-    g.add(trunk);
-    const tiers = 3;
-    for(let i=0;i<tiers;i++){
-      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.95-i*0.18, 1.05, 7), new THREE.MeshStandardMaterial({color:0x2f8f45, flatShading:true}));
-      cone.position.y = 1.3 + i*0.75;
-      cone.castShadow = true;
-      g.add(cone);
-    }
-    g.position.set(x,0,z);
-    g.scale.setScalar(scaleF);
-    return g;
-  }
-  function makeRoundTree(x,z,scaleF){
-    const g = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.24,1.2,6), new THREE.MeshStandardMaterial({color:0x8a5a34, flatShading:true}));
-    trunk.position.y = 0.6; trunk.castShadow = true;
-    g.add(trunk);
-    const leaves = new THREE.Mesh(new THREE.SphereGeometry(1.0,8,6), new THREE.MeshStandardMaterial({color:0x4aa85a, flatShading:true}));
-    leaves.position.y = 1.85; leaves.scale.set(1.1,0.85,1.1);
-    leaves.castShadow = true;
-    g.add(leaves);
-    g.position.set(x,0,z);
-    g.scale.setScalar(scaleF);
-    return g;
-  }
-  function makeClimbableTree(x,z){
-    const height = 5.6;
-    const trunkRadius = 0.34;
-    const g = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(trunkRadius, trunkRadius*1.2, height, 8), new THREE.MeshStandardMaterial({color:0x6b4226, flatShading:true}));
-    trunk.position.y = height/2; trunk.castShadow = true;
-    g.add(trunk);
-    for(let i=0;i<3;i++){
-      const cone = new THREE.Mesh(new THREE.ConeGeometry(1.5-i*0.25,1.5,8), new THREE.MeshStandardMaterial({color:0x2a7a3a, flatShading:true}));
-      cone.position.y = height - 0.6 + i*1.05;
-      cone.castShadow = true;
-      g.add(cone);
-    }
-    g.position.set(x,0,z);
-    scene.add(g);
-    climbableTrees.push({ x, z, radius:trunkRadius, height, group:g, label:null });
-    solidObstacles.push({x,z,radius: trunkRadius+0.2});
+  function spawnPipe(){
+    const gap = H * PIPE_GAP_RATIO;
+    const margin = H * 0.12;
+    const centerY = margin + Math.random() * (H - margin*2 - gap) + gap/2;
+    pipes.push({ x: W + 40, w: W * PIPE_WIDTH_RATIO, gapCenter: centerY, gap: gap, passed: false });
   }
 
-  function farFromLake(x,z,margin){
-    return Math.hypot(x-LAKE_CENTER.x, z-LAKE_CENTER.z) > LAKE_RADIUS + margin;
-  }
-
-  // scatter decorative trees, avoiding the lake and the spawn area
-  let placed = 0, attempts = 0;
-  while(placed < 46 && attempts < 400){
-    attempts++;
-    const x = (Math.random()-0.5)*90;
-    const z = (Math.random()-0.5)*90;
-    if(Math.hypot(x,z) < 4) continue;
-    if(!farFromLake(x,z,2.5)) continue;
-    const scaleF = 0.85 + Math.random()*0.5;
-    if(Math.random() < 0.5) scene.add(makePineTree(x,z,scaleF));
-    else scene.add(makeRoundTree(x,z,scaleF));
-    placed++;
-  }
-
-  // place 4 climbable trees at fixed, findable spots
-  makeClimbableTree(-13, 12);
-  makeClimbableTree(15, 16);
-  makeClimbableTree(-16, -16);
-  makeClimbableTree(22, -2);
-
-  // rocks
-  function makeRock(x,z){
-    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.35+Math.random()*0.3,0), new THREE.MeshStandardMaterial({color:0x9a9a9a, flatShading:true}));
-    rock.position.set(x, 0.28, z);
-    rock.rotation.set(Math.random(), Math.random(), Math.random());
-    rock.castShadow = true;
-    scene.add(rock);
-  }
-  for(let i=0;i<16;i++){
-    const a = Math.random()*Math.PI*2;
-    const d = 5 + Math.random()*35;
-    const x = Math.cos(a)*d, z = Math.sin(a)*d;
-    if(farFromLake(x,z,1)) makeRock(x,z);
-  }
-
-  // flowers
-  const flowerColors = [0xff6b8a, 0xffe066, 0xffffff, 0xb28aff];
-  for(let i=0;i<50;i++){
-    const a = Math.random()*Math.PI*2;
-    const d = 2 + Math.random()*40;
-    const x = Math.cos(a)*d, z = Math.sin(a)*d;
-    if(!farFromLake(x,z,1.5)) continue;
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.22,4), new THREE.MeshStandardMaterial({color:0x3f9e4f}));
-    stem.position.set(x,0.11,z);
-    scene.add(stem);
-    const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.06,6,6), new THREE.MeshStandardMaterial({color:flowerColors[i%flowerColors.length]}));
-    bloom.position.set(x,0.24,z);
-    scene.add(bloom);
-  }
-
-  // butterflies
-  const butterflies = [];
-  const butterflyColors = [0xff9f43, 0x74b9ff, 0xffffff, 0xffe066];
-  for(let i=0;i<5;i++){
-    const g = new THREE.Group();
-    const mat = new THREE.MeshStandardMaterial({ color:butterflyColors[i%butterflyColors.length], side:THREE.DoubleSide, emissive:0x111111 });
-    const wL = new THREE.Mesh(new THREE.PlaneGeometry(0.16,0.12), mat);
-    wL.position.x = -0.08;
-    const wR = wL.clone(); wR.position.x = 0.08;
-    g.add(wL, wR);
-    const cx = (Math.random()-0.5)*40, cz = (Math.random()-0.5)*40;
-    g.position.set(cx, 1.2+Math.random()*0.8, cz);
-    scene.add(g);
-    butterflies.push({ group:g, wL, wR, cx, cz, r: 1.5+Math.random()*2, speed: 0.6+Math.random()*0.5, phase: Math.random()*Math.PI*2, baseY: 1.2+Math.random()*0.8 });
-  }
-
-  // fish that occasionally jump in the lake
-  const fishes = [];
-  for(let i=0;i<3;i++){
-    const fish = new THREE.Mesh(new THREE.ConeGeometry(0.08,0.32,6), new THREE.MeshStandardMaterial({color:0xc0c8d0, metalness:0.4, roughness:0.3}));
-    fish.visible = false;
-    scene.add(fish);
-    const a = Math.random()*Math.PI*2;
-    const d = Math.random()*LAKE_RADIUS*0.7;
-    fishes.push({ mesh:fish, x: LAKE_CENTER.x+Math.cos(a)*d, z: LAKE_CENTER.z+Math.sin(a)*d, t:Math.random()*6, active:false, cooldown: Math.random()*4 });
-  }
-
-  // ---------- cat character ----------
-  const cat = new THREE.Group();
-
-  const furMat = new THREE.MeshStandardMaterial({ color:0xe08a3d, flatShading:true });
-  const bellyMat = new THREE.MeshStandardMaterial({ color:0xfff3e0, flatShading:true });
-  const stripeMat = new THREE.MeshStandardMaterial({ color:0x9a5423, flatShading:true });
-  const noseMat = new THREE.MeshStandardMaterial({ color:0xff9db3 });
-  const eyeMat = new THREE.MeshStandardMaterial({ color:0x2f6b2f });
-  const pupilMat = new THREE.MeshStandardMaterial({ color:0x111111 });
-  const pawMat = new THREE.MeshStandardMaterial({ color:0xfff3e0, flatShading:true });
-
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.3,10,8), furMat);
-  body.scale.set(1.35, 0.82, 0.78);
-  body.position.y = 0.42;
-  body.castShadow = true;
-  cat.add(body);
-
-  const bellyPatch = new THREE.Mesh(new THREE.SphereGeometry(0.24,8,6), bellyMat);
-  bellyPatch.scale.set(1.1,0.6,0.7);
-  bellyPatch.position.set(0,0.28,0.06);
-  cat.add(bellyPatch);
-
-  for(let i=0;i<3;i++){
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.22,0.05,0.5), stripeMat);
-    stripe.position.set(0.05-i*0.16, 0.58, 0);
-    stripe.rotation.y = 0.15;
-    cat.add(stripe);
-  }
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22,10,8), furMat);
-  head.position.set(0.34, 0.56, 0);
-  head.castShadow = true;
-  cat.add(head);
-
-  const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.11,8,6), bellyMat);
-  muzzle.position.set(0.48, 0.50, 0);
-  muzzle.scale.set(1,0.8,0.9);
-  cat.add(muzzle);
-
-  const earL = new THREE.Mesh(new THREE.ConeGeometry(0.07,0.14,6), furMat);
-  earL.position.set(0.32,0.74,0.13); earL.rotation.z = -0.2; earL.rotation.x = -0.25;
-  cat.add(earL);
-  const earR = earL.clone(); earR.position.z = -0.13; earR.rotation.x = 0.25;
-  cat.add(earR);
-
-  const eyeGeo = new THREE.SphereGeometry(0.045,6,6);
-  const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
-  eyeL.position.set(0.46,0.60,0.09);
-  cat.add(eyeL);
-  const eyeR = eyeL.clone(); eyeR.position.z = -0.09;
-  cat.add(eyeR);
-  const pupilGeo = new THREE.SphereGeometry(0.02,6,6);
-  const pupilL = new THREE.Mesh(pupilGeo, pupilMat);
-  pupilL.position.set(0.495,0.60,0.09);
-  cat.add(pupilL);
-  const pupilR = pupilL.clone(); pupilR.position.z = -0.09;
-  cat.add(pupilR);
-
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.025,0.05,5), noseMat);
-  nose.rotation.z = -Math.PI/2;
-  nose.position.set(0.59,0.49,0);
-  cat.add(nose);
-
-  function makeWhisker(zSide){
-    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.004,0.004,0.32,4), new THREE.MeshStandardMaterial({color:0xffffff}));
-    w.rotation.z = Math.PI/2;
-    w.position.set(0.55, 0.48, zSide*0.12);
-    return w;
-  }
-  cat.add(makeWhisker(1), makeWhisker(1.4), makeWhisker(-1), makeWhisker(-1.4));
-
-  // tail: a chain of segments for a natural curl/sway
-  const tailSegs = [];
-  let tailParent = cat;
-  let tailAnchor = new THREE.Vector3(-0.42, 0.5, 0);
-  for(let i=0;i<5;i++){
-    const pivot = new THREE.Group();
-    if(i===0) pivot.position.copy(tailAnchor);
-    else pivot.position.set(-0.16,0.04,0);
-    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.045-i*0.006,0.05-i*0.006,0.18,6), furMat);
-    seg.rotation.z = Math.PI/2;
-    seg.position.x = -0.09;
-    seg.castShadow = true;
-    pivot.add(seg);
-    tailParent.add(pivot);
-    tailParent = pivot;
-    tailSegs.push(pivot);
-  }
-
-  function makeLeg(x,z){
-    const pivot = new THREE.Group();
-    pivot.position.set(x, 0.34, z);
-    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.04,0.22,6), furMat);
-    upper.position.y = -0.11;
-    upper.castShadow = true;
-    pivot.add(upper);
-    const paw = new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6), pawMat);
-    paw.position.y = -0.23;
-    paw.scale.set(1,0.7,1.2);
-    pivot.add(paw);
-    return pivot;
-  }
-  const legFL = makeLeg(0.22, 0.16); cat.add(legFL);
-  const legFR = makeLeg(0.22, -0.16); cat.add(legFR);
-  const legBL = makeLeg(-0.22, 0.16); cat.add(legBL);
-  const legBR = makeLeg(-0.22, -0.16); cat.add(legBR);
-
-  cat.position.set(0,0,0);
-  scene.add(cat);
-
-  const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(0.4,16),
-    new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.22 })
-  );
-  shadow.rotation.x = -Math.PI/2;
-  shadow.position.y = 0.02;
-  scene.add(shadow);
-
-  // ---------- input ----------
-  const keys = { up:false, down:false, left:false, right:false };
-  const keyMap = {
-    'KeyW':'up','ArrowUp':'up',
-    'KeyS':'down','ArrowDown':'down',
-    'KeyA':'left','ArrowLeft':'left',
-    'KeyD':'right','ArrowRight':'right'
-  };
-  window.addEventListener('keydown', e=>{
-    if(keyMap[e.code]) keys[keyMap[e.code]] = true;
-    if(e.code === 'KeyE') tryToggleClimb();
-  });
-  window.addEventListener('keyup', e=>{ if(keyMap[e.code]) keys[keyMap[e.code]] = false; });
-
-  function bindPad(id, dir){
-    const el = document.getElementById(id);
-    const on = (e)=>{ e.preventDefault(); keys[dir]=true; };
-    const off = (e)=>{ e.preventDefault(); keys[dir]=false; };
-    el.addEventListener('pointerdown', on);
-    el.addEventListener('pointerup', off);
-    el.addEventListener('pointerleave', off);
-    el.addEventListener('pointercancel', off);
-  }
-  bindPad('padUp','up'); bindPad('padDown','down'); bindPad('padLeft','left'); bindPad('padRight','right');
-
-  let camYaw = 0;
-  let dragging = false, lastX = 0;
-  canvas.addEventListener('pointerdown', e=>{ dragging=true; lastX=e.clientX; });
-  window.addEventListener('pointerup', ()=> dragging=false);
-  window.addEventListener('pointermove', e=>{
-    if(dragging){ camYaw -= (e.clientX-lastX)*0.005; lastX = e.clientX; }
-  });
-
-  climbBtn.addEventListener('click', tryToggleClimb);
-
-  // ---------- game state ----------
-  let state = 'ready';
-  let walkPhase = 0;
-  let facing = 0;
-  let lastTime = 0;
-  let mode = 'ground'; // 'ground' | 'climbing'
-  let climbTree = null;
-  let climbY = 0;
-  let nearTree = null;
-
-  function showReady(){ state='ready'; overlay.style.display='flex'; }
-  function startGame(){ state='playing'; overlay.style.display='none'; }
-  startBtn.addEventListener('click', startGame);
-
-  function tryToggleClimb(){
+  function flap(){
+    if(state === 'ready'){ startGame(); return; }
     if(state !== 'playing') return;
-    if(mode === 'ground'){
-      if(nearTree){
-        mode = 'climbing';
-        climbTree = nearTree;
-        climbY = 0.2;
-        modeTag.textContent = '🌲 climbing';
-        climbBtn.textContent = 'Down';
-        hint.textContent = 'up/down to climb, button to get down';
+    bird.vy = FLAP_VELOCITY;
+    flapPulse = 1;
+  }
+
+  function startGame(){
+    reset();
+    state = 'playing';
+    overlay.style.display = 'none';
+    lastTime = performance.now();
+  }
+
+  function gameOver(){
+    state = 'over';
+    if(score > best){ best = score; localStorage.setItem('flappy_best', String(best)); }
+    overlayTitle.textContent = 'Game Over';
+    overlaySub.textContent = 'Score: ' + score;
+    bestScoreEl.textContent = 'Best: ' + best;
+    startBtn.textContent = 'Try Again';
+    overlay.style.display = 'flex';
+  }
+
+  function showReady(){
+    state = 'ready';
+    overlayTitle.textContent = 'Flappy Game';
+    overlaySub.textContent = 'Tap / click / press space to flap';
+    bestScoreEl.textContent = best ? ('Best: ' + best) : '';
+    startBtn.textContent = 'Play';
+    overlay.style.display = 'flex';
+  }
+
+  function update(dt){
+    elapsed += dt;
+    bird.vy += GRAVITY * dt;
+    bird.y += bird.vy * dt;
+    bird.rot = Math.max(-0.5, Math.min(1.2, bird.vy / 700));
+
+    flapPulse = Math.max(0, flapPulse - dt*2.2);
+    const wingSpeed = 9 + flapPulse*14;
+    bird.wing += wingSpeed * dt;
+
+    groundOffset -= PIPE_SPEED * dt;
+    if(groundOffset < -40) groundOffset += 40;
+
+    spawnTimer += dt*1000;
+    if(spawnTimer > PIPE_INTERVAL){ spawnTimer = 0; spawnPipe(); }
+
+    for(let i = pipes.length-1; i>=0; i--){
+      const p = pipes[i];
+      p.x -= PIPE_SPEED * dt;
+      if(!p.passed && p.x + p.w < bird.x - bird.r){ p.passed = true; score++; hud.textContent = score; }
+      if(p.x + p.w < -40) pipes.splice(i,1);
+    }
+
+    const groundY = H - 40;
+    if(bird.y + bird.r > groundY || bird.y - bird.r < 0){ gameOver(); return; }
+
+    for(const p of pipes){
+      const withinX = bird.x + bird.r > p.x && bird.x - bird.r < p.x + p.w;
+      if(withinX){
+        const topEnd = p.gapCenter - p.gap/2;
+        const botStart = p.gapCenter + p.gap/2;
+        if(bird.y - bird.r < topEnd || bird.y + bird.r > botStart){ gameOver(); return; }
       }
-    } else {
-      mode = 'ground';
-      cat.rotation.x = 0;
-      modeTag.textContent = '🐾 wandering';
-      climbBtn.classList.remove('show');
-      climbBtn.textContent = 'Climb';
-      hint.textContent = 'walk up to a big tree to climb it';
-      climbTree = null;
     }
   }
 
-  const MOVE_SPEED = 3.1;
-  const WORLD_LIMIT = 48;
-  const CLIMB_SPEED = 1.7;
+  function drawSky(){
+    const g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0, '#3E9BDC');
+    g.addColorStop(0.55, '#79C7E8');
+    g.addColorStop(0.85, '#BFE9E0');
+    g.addColorStop(1, '#E7F5D8');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
 
-  function resolveLakeCollision(nx, nz, oldx, oldz){
-    const dx = nx - LAKE_CENTER.x, dz = nz - LAKE_CENTER.z;
-    const dist = Math.hypot(dx,dz);
-    if(dist < LAKE_RADIUS + 0.4){
-      return { x: oldx, z: oldz, blocked:true };
-    }
-    return { x:nx, z:nz, blocked:false };
+    const sunX = W*0.78, sunY = H*0.16;
+    const glow = ctx.createRadialGradient(sunX,sunY,4, sunX,sunY,60);
+    glow.addColorStop(0, 'rgba(255,250,210,0.95)');
+    glow.addColorStop(1, 'rgba(255,250,210,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(sunX-70, sunY-70, 140, 140);
+    ctx.fillStyle = '#FFF6C9';
+    ctx.beginPath(); ctx.arc(sunX, sunY, 20, 0, Math.PI*2); ctx.fill();
   }
 
-  function resolveTreeCollision(nx,nz, oldx, oldz){
-    for(const t of solidObstacles){
-      const d = Math.hypot(nx-t.x, nz-t.z);
-      if(d < t.radius+0.35){
-        return { x:oldx, z:oldz, blocked:true };
-      }
+  function drawClouds(){
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    const speed = 6;
+    for(let i=0;i<4;i++){
+      const baseX = i*160;
+      const cx = (( (baseX - elapsed*speed) % (W+200) ) + (W+200)) % (W+200) - 100;
+      const cy = H*0.12 + (i%2)*35;
+      cloud(cx, cy, 26 + (i%2)*8);
     }
-    return { x:nx, z:nz, blocked:false };
+  }
+  function cloud(x,y,s){
+    ctx.beginPath();
+    ctx.arc(x, y, s*0.6, 0, Math.PI*2);
+    ctx.arc(x+s*0.6, y+6, s*0.5, 0, Math.PI*2);
+    ctx.arc(x-s*0.6, y+8, s*0.45, 0, Math.PI*2);
+    ctx.fill();
   }
 
-  function updateGround(dt){
-    let mx=0, mz=0;
-    if(keys.up) mz -= 1;
-    if(keys.down) mz += 1;
-    if(keys.left) mx -= 1;
-    if(keys.right) mx += 1;
-    const moving = (mx!==0 || mz!==0);
-
-    if(moving){
-      const len = Math.hypot(mx,mz); mx/=len; mz/=len;
-      let nx = cat.position.x + mx*MOVE_SPEED*dt;
-      let nz = cat.position.z + mz*MOVE_SPEED*dt;
-      nx = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, nx));
-      nz = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, nz));
-      let res = resolveLakeCollision(nx,nz,cat.position.x,cat.position.z);
-      res = resolveTreeCollision(res.x,res.z,cat.position.x,cat.position.z);
-      cat.position.x = res.x; cat.position.z = res.z;
-
-      const targetFacing = Math.atan2(mx,mz);
-      let diff = targetFacing - facing;
-      while(diff>Math.PI) diff -= Math.PI*2;
-      while(diff<-Math.PI) diff += Math.PI*2;
-      facing += diff*Math.min(1,dt*10);
-      walkPhase += dt*10;
-    } else {
-      walkPhase += dt*2;
-    }
-    cat.rotation.y = facing;
-
-    const trot = moving ? 0.55 : 0.04;
-    legFL.rotation.x = Math.sin(walkPhase)*trot;
-    legBR.rotation.x = Math.sin(walkPhase)*trot;
-    legFR.rotation.x = Math.sin(walkPhase+Math.PI)*trot;
-    legBL.rotation.x = Math.sin(walkPhase+Math.PI)*trot;
-    cat.position.y = moving ? Math.abs(Math.sin(walkPhase*2))*0.035 : 0;
-
-    // tail sway
-    tailSegs.forEach((seg,i)=>{
-      seg.rotation.y = Math.sin(walkPhase*0.6 + i*0.6)*0.25;
-      seg.rotation.x = 0.15 + Math.sin(walkPhase*0.5+i)*0.08;
-    });
-
-    // check proximity to climbable trees
-    nearTree = null;
-    for(const t of climbableTrees){
-      const d = Math.hypot(cat.position.x-t.x, cat.position.z-t.z);
-      if(d < t.radius + 1.1){ nearTree = t; break; }
-    }
-    if(nearTree){ climbBtn.classList.add('show'); climbBtn.textContent='Climb'; hint.textContent='press to climb this tree'; }
-    else { climbBtn.classList.remove('show'); hint.textContent='walk up to a big tree to climb it'; }
-
-    shadow.position.x = cat.position.x;
-    shadow.position.z = cat.position.z;
-    shadow.visible = true;
+  function drawMountains(){
+    const speed = 12;
+    const offset = (elapsed*speed) % 220;
+    ctx.fillStyle = '#8FB89E';
+    ctx.globalAlpha = 0.55;
+    drawRidge(offset, H*0.62, 55, 220);
+    ctx.globalAlpha = 1;
   }
 
-  function updateClimb(dt){
-    if(!climbTree) return;
-    if(keys.up) climbY += CLIMB_SPEED*dt;
-    if(keys.down) climbY -= CLIMB_SPEED*dt;
-    climbY = Math.max(0.2, Math.min(climbTree.height-0.6, climbY));
+  function drawHills(){
+    const speed = 45;
+    const offset = (elapsed*speed) % 180;
+    ctx.fillStyle = '#6FAE72';
+    drawRidge(offset, H*0.72, 40, 180);
+  }
 
-    const ang = facing;
-    cat.position.x = climbTree.x + Math.sin(ang)*(climbTree.radius+0.28);
-    cat.position.z = climbTree.z + Math.cos(ang)*(climbTree.radius+0.28);
-    cat.position.y = climbY;
-    cat.rotation.x = -1.15;
+  function drawRidge(offset, baseY, height, period){
+    ctx.beginPath();
+    ctx.moveTo(-period, H);
+    for(let x = -period; x < W+period; x += period){
+      const px = x - offset;
+      ctx.lineTo(px, baseY);
+      ctx.lineTo(px + period/2, baseY - height);
+      ctx.lineTo(px + period, baseY);
+    }
+    ctx.lineTo(W+period, H);
+    ctx.closePath();
+    ctx.fill();
+  }
 
-    walkPhase += dt*6;
-    const scrabble = 0.35;
-    legFL.rotation.x = Math.sin(walkPhase)*scrabble;
-    legBR.rotation.x = Math.sin(walkPhase)*scrabble;
-    legFR.rotation.x = Math.sin(walkPhase+Math.PI)*scrabble;
-    legBL.rotation.x = Math.sin(walkPhase+Math.PI)*scrabble;
-    tailSegs.forEach((seg,i)=>{ seg.rotation.y = Math.sin(walkPhase*0.7+i)*0.3; });
+  function drawGround(){
+    const groundY = H - 40;
+    const dirtGrad = ctx.createLinearGradient(0, groundY, 0, H);
+    dirtGrad.addColorStop(0, '#C99A5B');
+    dirtGrad.addColorStop(1, '#A97C42');
+    ctx.fillStyle = dirtGrad;
+    ctx.fillRect(0, groundY, W, H-groundY);
 
-    shadow.visible = false;
+    ctx.fillStyle = '#5FA24A';
+    ctx.fillRect(0, groundY, W, 10);
+    ctx.fillStyle = '#4C8B3C';
+    for(let x = groundOffset; x < W; x += 14){
+      ctx.beginPath();
+      ctx.moveTo(x, groundY+2);
+      ctx.lineTo(x+4, groundY-6);
+      ctx.lineTo(x+8, groundY+2);
+      ctx.fill();
+    }
 
-    if(climbY <= 0.21 && keys.down){
-      tryToggleClimb();
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    for(let x = groundOffset*1.3; x < W; x += 46){
+      ctx.fillRect(x, groundY+18, 22, 5);
     }
   }
 
-  function updateAmbience(dt, t){
-    waterTex.offset.x = Math.sin(t*0.15)*0.05;
-    waterTex.offset.y += dt*0.03;
-
-    butterflies.forEach(b=>{
-      b.phase += dt*b.speed;
-      b.group.position.x = b.cx + Math.cos(b.phase)*b.r;
-      b.group.position.z = b.cz + Math.sin(b.phase)*b.r;
-      b.group.position.y = b.baseY + Math.sin(t*2+b.phase)*0.15;
-      b.group.rotation.y = -b.phase;
-      const flap = Math.sin(t*14)*0.9;
-      b.wL.rotation.y = flap;
-      b.wR.rotation.y = -flap;
-    });
-
-    fishes.forEach(f=>{
-      if(!f.active){
-        f.cooldown -= dt;
-        if(f.cooldown <= 0){ f.active = true; f.t = 0; f.mesh.visible = true; }
-      } else {
-        f.t += dt;
-        const dur = 0.7;
-        if(f.t > dur){ f.active=false; f.mesh.visible=false; f.cooldown = 2+Math.random()*5; }
-        else {
-          const p = f.t/dur;
-          f.mesh.position.set(f.x, Math.sin(p*Math.PI)*0.5, f.z);
-          f.mesh.rotation.z = Math.sin(p*Math.PI)*0.6;
-        }
-      }
-    });
-  }
-
-  function updateCamera(dt){
-    let offset;
-    if(mode === 'climbing' && climbTree){
-      const dir = new THREE.Vector3(Math.sin(facing), 0, Math.cos(facing));
-      offset = dir.clone().multiplyScalar(3.4);
-      offset.y = 1.2;
-    } else {
-      offset = new THREE.Vector3(Math.sin(facing+camYaw)*-3.6, 2.1, Math.cos(facing+camYaw)*-3.6);
+  function drawPipes(){
+    for(const p of pipes){
+      const topEnd = p.gapCenter - p.gap/2;
+      const botStart = p.gapCenter + p.gap/2;
+      drawPipeSegment(p.x, 0, p.w, topEnd, true);
+      drawPipeSegment(p.x, botStart, p.w, H-botStart, false);
     }
-    const desired = cat.position.clone().add(offset);
-    camera.position.lerp(desired, Math.min(1, dt*4));
-    camera.lookAt(cat.position.x, cat.position.y+0.9, cat.position.z);
   }
 
-  function animate(now){
-    requestAnimationFrame(animate);
-    const dt = lastTime ? Math.min(0.032,(now-lastTime)/1000) : 0;
+  function drawPipeSegment(x, y, w, h, isTop){
+    const grad = ctx.createLinearGradient(x, 0, x+w, 0);
+    grad.addColorStop(0, '#2E8F3B');
+    grad.addColorStop(0.18, '#4FBF57');
+    grad.addColorStop(0.5, '#6FE07A');
+    grad.addColorStop(0.82, '#4FBF57');
+    grad.addColorStop(1, '#2E8F3B');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, w, h);
+
+    const capH = 20;
+    const capY = isTop ? y+h-capH : y;
+    ctx.fillStyle = '#2E8F3B';
+    ctx.fillRect(x-5, capY, w+10, capH);
+    const capGrad = ctx.createLinearGradient(x-5,0,x+w+5,0);
+    capGrad.addColorStop(0, '#3B9E45');
+    capGrad.addColorStop(0.5, '#7BEB84');
+    capGrad.addColorStop(1, '#3B9E45');
+    ctx.fillStyle = capGrad;
+    ctx.fillRect(x-5, capY+3, w+10, capH-6);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(x, y, 4, h);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(x+w-4, y, 3, h);
+  }
+
+  function drawWing(angle, r, color, alpha){
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(-r*0.1, r*0.05);
+    ctx.rotate(angle);
+    const wingGrad = ctx.createLinearGradient(0,0,-r*1.1, r*0.2);
+    wingGrad.addColorStop(0, color);
+    wingGrad.addColorStop(1, '#5C2E17');
+    ctx.fillStyle = wingGrad;
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.quadraticCurveTo(-r*0.9, -r*0.15, -r*1.15, r*0.35);
+    ctx.quadraticCurveTo(-r*0.6, r*0.5, 0, r*0.15);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawBird(){
+    const b = bird;
+    const groundY = H - 40;
+    const shadowScale = Math.max(0.25, 1 - (groundY - b.y)/H);
+    ctx.save();
+    ctx.globalAlpha = 0.18 * shadowScale;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(b.x, groundY-2, b.r*1.1*shadowScale, b.r*0.35*shadowScale, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.rotate(b.rot);
+
+    const r = b.r;
+    const wingAngle = Math.sin(b.wing) * 0.9;
+
+    ctx.fillStyle = '#8A4A2E';
+    ctx.beginPath();
+    ctx.moveTo(-r*0.9, 0);
+    ctx.lineTo(-r*1.7, -r*0.35);
+    ctx.lineTo(-r*1.5, 0);
+    ctx.lineTo(-r*1.7, r*0.35);
+    ctx.closePath();
+    ctx.fill();
+
+    drawWing(-wingAngle*0.7, r, '#A0522D', 0.85);
+
+    const bodyGrad = ctx.createRadialGradient(-r*0.2,-r*0.3,r*0.2, 0,0,r*1.3);
+    bodyGrad.addColorStop(0, '#E08A4F');
+    bodyGrad.addColorStop(0.55, '#C96A32');
+    bodyGrad.addColorStop(1, '#9C4A22');
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r*1.15, r*0.92, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = '#F3E3C9';
+    ctx.beginPath();
+    ctx.ellipse(-r*0.05, r*0.32, r*0.72, r*0.42, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = '#7A3B1E';
+    ctx.beginPath();
+    ctx.ellipse(r*0.35, -r*0.55, r*0.55, r*0.4, -0.3, 0, Math.PI*2);
+    ctx.fill();
+
+    drawWing(wingAngle, r, '#8A4A2E', 1);
+
+    ctx.fillStyle = '#1A1A1A';
+    ctx.beginPath();
+    ctx.arc(r*0.42, -r*0.18, r*0.15, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(r*0.47, -r*0.24, r*0.05, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = '#F2A63D';
+    ctx.beginPath();
+    ctx.moveTo(r*0.95, -r*0.05);
+    ctx.lineTo(r*1.55, r*0.05);
+    ctx.lineTo(r*0.95, r*0.28);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function loop(now){
+    const dt = Math.min(0.032, (now - lastTime)/1000);
     lastTime = now;
-    const t = now/1000;
 
     if(state === 'playing'){
-      if(mode === 'ground') updateGround(dt);
-      else updateClimb(dt);
+      update(dt);
+    } else {
+      elapsed += dt;
+      bird.wing += 6*dt;
     }
-    updateAmbience(dt, t);
-    updateCamera(dt);
-    renderer.render(scene, camera);
+
+    drawSky();
+    drawClouds();
+    drawMountains();
+    drawHills();
+    drawPipes();
+    drawGround();
+    drawBird();
+
+    requestAnimationFrame(loop);
   }
 
-  resize();
-  camera.position.set(0,2.1,-3.6);
+  canvas.addEventListener('pointerdown', (e)=>{ e.preventDefault(); flap(); });
+  window.addEventListener('keydown', (e)=>{ if(e.code === 'Space'){ e.preventDefault(); flap(); } });
+  startBtn.addEventListener('click', ()=>{ startGame(); });
+
+  reset();
   showReady();
-  loading.style.display = 'none';
-  requestAnimationFrame(animate);
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
 })();
 </script>
 
