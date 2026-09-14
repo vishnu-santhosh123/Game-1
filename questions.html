@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Cartoon Explorer 3D</title>
+<style>
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:#0d1b2a;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Segoe UI', Arial, sans-serif;
+    overflow:hidden;
+    touch-action: manipulation;
+  }
+  #wrap{ position:relative; width:100%; max-width:460px; aspect-ratio: 9/16; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+  canvas{ display:block; width:100%; height:100%; border-radius:6px; }
+
+  #hud{
+    position:absolute; top:14px; left:14px; right:14px;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    pointer-events:none;
+  }
+  #score{
+    background: rgba(0,0,0,0.4); color:white; font-weight:700;
+    padding: 8px 16px; border-radius: 999px; font-size:1rem;
+  }
+
+  #overlay{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background: rgba(10,15,25,0.55);
+    color:white; text-align:center; padding: 20px;
+  }
+  #overlay h1{ font-size:1.7rem; margin:0 0 6px; }
+  #overlay p{ margin:0 0 18px; opacity:0.85; font-size:0.9rem; max-width:300px; }
+  #startBtn{
+    font-size:1.1rem; font-weight:700; border:none; cursor:pointer;
+    background:#FFD34D; color:#3a2a00; padding:12px 30px; border-radius:999px;
+    box-shadow:0 5px 0 #c9a12e;
+  }
+  #startBtn:active{ transform:translateY(3px); box-shadow:0 2px 0 #c9a12e; }
+
+  #loading{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:rgba(255,255,255,0.7); font-size:0.9rem; background:#0d1b2a; text-align:center; padding:20px;
+  }
+
+  /* touch controls */
+  #padWrap{
+    position:absolute; bottom:18px; left:18px;
+    width:132px; height:132px;
+    display:none;
+  }
+  #padWrap.show{ display:block; }
+  .pad-btn{
+    position:absolute; width:44px; height:44px;
+    background: rgba(255,255,255,0.85);
+    border-radius: 10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.2rem; color:#333; user-select:none;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.25);
+  }
+  .pad-btn:active{ background: rgba(255,255,255,1); transform: scale(0.94); }
+  #padUp{ top:0; left:44px; }
+  #padDown{ top:88px; left:44px; }
+  #padLeft{ top:44px; left:0; }
+  #padRight{ top:44px; left:88px; }
+
+  #hint{ position:absolute; bottom:14px; left:0; right:0; text-align:center; color:rgba(255,255,255,0.55); font-size:0.78rem; pointer-events:none; }
+</style>
+</head>
+<body>
+
+<div id="wrap">
+  <div id="loading">loading 3d scene…</div>
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div id="score">🪙 0 / 15</div>
+  </div>
+
+  <div id="overlay" style="display:none;">
+    <h1>Cartoon Explorer</h1>
+    <p>Walk around and collect all the coins. Use WASD / arrow keys, or the pad on mobile.</p>
+    <button id="startBtn">Play</button>
+  </div>
+
+  <div id="padWrap">
+    <div class="pad-btn" id="padUp">▲</div>
+    <div class="pad-btn" id="padDown">▼</div>
+    <div class="pad-btn" id="padLeft">◀</div>
+    <div class="pad-btn" id="padRight">▶</div>
+  </div>
+  <div id="hint">drag camera with two fingers · walk with the pad</div>
+</div>
+
+<script src="three.min.js"></script>
+<script>
+(function(){
+  const wrap = document.getElementById('wrap');
+  const canvas = document.getElementById('game');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+  const loading = document.getElementById('loading');
+  const scoreEl = document.getElementById('score');
+  const padWrap = document.getElementById('padWrap');
+
+  if(typeof THREE === 'undefined'){
+    loading.textContent = "Something went wrong loading the 3D engine. Try reloading the page.";
+    return;
+  }
+
+  const isTouch = 'ontouchstart' in window;
+  if(isTouch) padWrap.classList.add('show');
+
+  // ---------- renderer / scene / camera ----------
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  renderer.shadowMap.enabled = true;
+
+  const scene = new THREE.Scene();
+  const skyColor = 0x9fdcf5;
+  scene.background = new THREE.Color(skyColor);
+  scene.fog = new THREE.Fog(skyColor, 20, 55);
+
+  const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 200);
+
+  function resize(){
+    const rect = wrap.getBoundingClientRect();
+    renderer.setSize(rect.width, rect.height, false);
+    camera.aspect = rect.width / rect.height;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  // ---------- lights ----------
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x6b8f5a, 0.9);
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff3d0, 1.0);
+  sun.position.set(8, 14, 6);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024,1024);
+  sun.shadow.camera.left = -25; sun.shadow.camera.right = 25;
+  sun.shadow.camera.top = 25; sun.shadow.camera.bottom = -25;
+  scene.add(sun);
+
+  // ---------- ground ----------
+  function makeGrassTexture(){
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 64;
+    const g = c.getContext('2d');
+    g.fillStyle = '#6FBE5A'; g.fillRect(0,0,64,64);
+    g.fillStyle = '#5EA84C';
+    for(let i=0;i<50;i++){ g.fillRect(Math.random()*64, Math.random()*64, 2, 6); }
+    g.fillStyle = '#7DCB68';
+    for(let i=0;i<25;i++){ g.fillRect(Math.random()*64, Math.random()*64, 2, 4); }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(20,20);
+    tex.magFilter = THREE.NearestFilter;
+    return tex;
+  }
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(100,100),
+    new THREE.MeshStandardMaterial({ map: makeGrassTexture(), roughness:1 })
+  );
+  ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // decorative low-poly trees & rocks
+  function makeTree(x,z){
+    const g = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.24,1.1,6), new THREE.MeshStandardMaterial({color:0x8a5a34, flatShading:true}));
+    trunk.position.y = 0.55; trunk.castShadow = true;
+    const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.1,1.8,7), new THREE.MeshStandardMaterial({color:0x3f9e4f, flatShading:true}));
+    leaves.position.y = 1.7; leaves.castShadow = true;
+    g.add(trunk, leaves);
+    g.position.set(x,0,z);
+    return g;
+  }
+  function makeRock(x,z){
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.4+Math.random()*0.3,0), new THREE.MeshStandardMaterial({color:0x9a9a9a, flatShading:true}));
+    rock.position.set(x, 0.3, z);
+    rock.rotation.set(Math.random(), Math.random(), Math.random());
+    rock.castShadow = true;
+    return rock;
+  }
+  for(let i=0;i<22;i++){
+    const angle = Math.random()*Math.PI*2;
+    const dist = 10 + Math.random()*28;
+    scene.add(makeTree(Math.cos(angle)*dist, Math.sin(angle)*dist));
+  }
+  for(let i=0;i<12;i++){
+    const angle = Math.random()*Math.PI*2;
+    const dist = 6 + Math.random()*30;
+    scene.add(makeRock(Math.cos(angle)*dist, Math.sin(angle)*dist));
+  }
+
+  // ---------- cartoon character ----------
+  const player = new THREE.Group();
+
+  const skin = new THREE.MeshStandardMaterial({ color:0xffcf9e, flatShading:true });
+  const shirt = new THREE.MeshStandardMaterial({ color:0xff5c5c, flatShading:true });
+  const pants = new THREE.MeshStandardMaterial({ color:0x3b5bb0, flatShading:true });
+  const shoe = new THREE.MeshStandardMaterial({ color:0x2b2b2b, flatShading:true });
+  const hairMat = new THREE.MeshStandardMaterial({ color:0x2e1f14, flatShading:true });
+  const eyeMat = new THREE.MeshStandardMaterial({ color:0x1a1a1a });
+
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.4,0.62,10), shirt);
+  torso.position.y = 1.05; torso.castShadow = true;
+  player.add(torso);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.36,12,10), skin);
+  head.position.y = 1.65; head.castShadow = true;
+  player.add(head);
+
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.38,10,8,0,Math.PI*2,0,Math.PI*0.55), hairMat);
+  hair.position.y = 1.78;
+  player.add(hair);
+
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.045,6,6), eyeMat);
+  eyeL.position.set(0.13,1.68,0.32);
+  player.add(eyeL);
+  const eyeR = eyeL.clone(); eyeR.position.x = -0.13;
+  player.add(eyeR);
+
+  function makeLimb(mat, radiusTop, radiusBottom, length){
+    const pivot = new THREE.Group();
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radiusTop, radiusBottom, length, 8), mat);
+    mesh.position.y = -length/2;
+    mesh.castShadow = true;
+    pivot.add(mesh);
+    return pivot;
+  }
+
+  const armL = makeLimb(skin, 0.09, 0.08, 0.55);
+  armL.position.set(0.42, 1.28, 0);
+  player.add(armL);
+  const armR = makeLimb(skin, 0.09, 0.08, 0.55);
+  armR.position.set(-0.42, 1.28, 0);
+  player.add(armR);
+
+  const legL = makeLimb(pants, 0.12, 0.1, 0.62);
+  legL.position.set(0.16, 0.74, 0);
+  player.add(legL);
+  const legR = makeLimb(pants, 0.12, 0.1, 0.62);
+  legR.position.set(-0.16, 0.74, 0);
+  player.add(legR);
+
+  const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.12,0.32), shoe);
+  shoeL.position.set(0.16, 0.06, 0.06);
+  shoeL.castShadow = true;
+  player.add(shoeL);
+  const shoeR = shoeL.clone(); shoeR.position.x = -0.16;
+  player.add(shoeR);
+
+  player.position.set(0,0,0);
+  scene.add(player);
+
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(0.5,16),
+    new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.25 })
+  );
+  shadow.rotation.x = -Math.PI/2;
+  shadow.position.y = 0.02;
+  scene.add(shadow);
+
+  // ---------- coins ----------
+  const coinMat = new THREE.MeshStandardMaterial({ color:0xffd34d, metalness:0.3, roughness:0.35, flatShading:true });
+  const coins = [];
+  const TOTAL_COINS = 15;
+  for(let i=0;i<TOTAL_COINS;i++){
+    const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,0.08,12), coinMat);
+    const angle = Math.random()*Math.PI*2;
+    const dist = 4 + Math.random()*26;
+    coin.position.set(Math.cos(angle)*dist, 0.5, Math.sin(angle)*dist);
+    coin.rotation.x = Math.PI/2;
+    coin.castShadow = true;
+    scene.add(coin);
+    coins.push(coin);
+  }
+  let collected = 0;
+
+  // ---------- input ----------
+  const keys = { up:false, down:false, left:false, right:false };
+  const keyMap = {
+    'KeyW':'up','ArrowUp':'up',
+    'KeyS':'down','ArrowDown':'down',
+    'KeyA':'left','ArrowLeft':'left',
+    'KeyD':'right','ArrowRight':'right'
+  };
+  window.addEventListener('keydown', e=>{ if(keyMap[e.code]){ keys[keyMap[e.code]] = true; } });
+  window.addEventListener('keyup', e=>{ if(keyMap[e.code]){ keys[keyMap[e.code]] = false; } });
+
+  function bindPad(id, dir){
+    const el = document.getElementById(id);
+    const on = (e)=>{ e.preventDefault(); keys[dir]=true; };
+    const off = (e)=>{ e.preventDefault(); keys[dir]=false; };
+    el.addEventListener('pointerdown', on);
+    el.addEventListener('pointerup', off);
+    el.addEventListener('pointerleave', off);
+    el.addEventListener('pointercancel', off);
+  }
+  bindPad('padUp','up'); bindPad('padDown','down'); bindPad('padLeft','left'); bindPad('padRight','right');
+
+  // simple two-finger orbit for camera (optional touch look-around)
+  let camYaw = 0;
+  let dragging = false, lastX = 0;
+  canvas.addEventListener('pointerdown', e=>{ dragging=true; lastX=e.clientX; });
+  window.addEventListener('pointerup', ()=> dragging=false);
+  window.addEventListener('pointermove', e=>{
+    if(dragging){ camYaw -= (e.clientX-lastX)*0.005; lastX = e.clientX; }
+  });
+
+  // ---------- game state ----------
+  let state = 'ready';
+  let walkPhase = 0;
+  let facing = 0;
+  let lastTime = 0;
+
+  function showReady(){
+    state = 'ready';
+    overlay.style.display = 'flex';
+  }
+  function startGame(){
+    state = 'playing';
+    overlay.style.display = 'none';
+  }
+  function winGame(){
+    state = 'won';
+    document.querySelector('#overlay h1').textContent = 'All coins collected! 🎉';
+    document.querySelector('#overlay p').textContent = 'Nice work exploring the map.';
+    startBtn.textContent = 'Play Again';
+    overlay.style.display = 'flex';
+  }
+  startBtn.addEventListener('click', ()=>{
+    if(state === 'won'){
+      coins.forEach(c=>{ c.visible = true; scene.add(c); });
+      collected = 0;
+      scoreEl.textContent = '🪙 0 / ' + TOTAL_COINS;
+      player.position.set(0,0,0);
+      document.querySelector('#overlay h1').textContent = 'Cartoon Explorer';
+      document.querySelector('#overlay p').textContent = 'Walk around and collect all the coins. Use WASD / arrow keys, or the pad on mobile.';
+      startBtn.textContent = 'Play';
+    }
+    startGame();
+  });
+
+  const MOVE_SPEED = 3.6;
+  const WORLD_LIMIT = 34;
+
+  function update(dt){
+    let mx = 0, mz = 0;
+    if(keys.up) mz -= 1;
+    if(keys.down) mz += 1;
+    if(keys.left) mx -= 1;
+    if(keys.right) mx += 1;
+
+    const moving = (mx !== 0 || mz !== 0);
+    if(moving){
+      const len = Math.hypot(mx,mz);
+      mx/=len; mz/=len;
+      player.position.x += mx*MOVE_SPEED*dt;
+      player.position.z += mz*MOVE_SPEED*dt;
+      player.position.x = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, player.position.x));
+      player.position.z = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, player.position.z));
+
+      const targetFacing = Math.atan2(mx, mz);
+      let diff = targetFacing - facing;
+      while(diff > Math.PI) diff -= Math.PI*2;
+      while(diff < -Math.PI) diff += Math.PI*2;
+      facing += diff * Math.min(1, dt*10);
+
+      walkPhase += dt*9;
+    } else {
+      walkPhase += dt*2;
+    }
+    player.rotation.y = facing;
+
+    const swing = moving ? Math.sin(walkPhase)*0.6 : Math.sin(walkPhase)*0.05;
+    legL.rotation.x = swing;
+    legR.rotation.x = -swing;
+    armL.rotation.x = -swing*0.8;
+    armR.rotation.x = swing*0.8;
+    player.position.y = moving ? Math.abs(Math.sin(walkPhase*2))*0.05 : 0;
+
+    shadow.position.x = player.position.x;
+    shadow.position.z = player.position.z;
+
+    for(let i=coins.length-1;i>=0;i--){
+      const c = coins[i];
+      if(!c.visible) continue;
+      c.rotation.z += dt*2;
+      const d = Math.hypot(c.position.x-player.position.x, c.position.z-player.position.z);
+      if(d < 0.8){
+        c.visible = false;
+        scene.remove(c);
+        collected++;
+        scoreEl.textContent = '🪙 ' + collected + ' / ' + TOTAL_COINS;
+        if(collected >= TOTAL_COINS){ winGame(); }
+      }
+    }
+  }
+
+  function updateCamera(dt){
+    const offset = new THREE.Vector3(Math.sin(facing+camYaw)*-4.2, 2.6, Math.cos(facing+camYaw)*-4.2);
+    const desired = player.position.clone().add(offset);
+    camera.position.lerp(desired, Math.min(1, dt*4));
+    camera.lookAt(player.position.x, player.position.y+1.1, player.position.z);
+  }
+
+  function animate(now){
+    requestAnimationFrame(animate);
+    const dt = lastTime ? Math.min(0.032,(now-lastTime)/1000) : 0;
+    lastTime = now;
+    if(state === 'playing'){ update(dt); }
+    updateCamera(dt);
+    renderer.render(scene, camera);
+  }
+
+  resize();
+  camera.position.set(0,2.6,-4.2);
+  showReady();
+  loading.style.display = 'none';
+  requestAnimationFrame(animate);
+})();
+</script>
+
+</body>
+</html>
